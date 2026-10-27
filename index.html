@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signal Cash</title>
+  <meta name="description" content="Журнал торговых сигналов: ввод, расчёт R:R и P&L, статистика, синхронизация с Google Таблицей.">
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◆</span>
+      <div>
+        <h1>Signal Cash</h1>
+        <p class="muted small">Журнал торговых сигналов</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="btn-new" type="button">+ Новый сигнал</button>
+      <button class="btn" id="btn-sheets" type="button">Google Таблица</button>
+      <details class="menu">
+        <summary class="btn" aria-label="Ещё действия">⋯</summary>
+        <div class="menu-list">
+          <button type="button" id="btn-export">Экспорт CSV</button>
+          <label class="menu-item">Импорт CSV<input type="file" id="file-import" accept=".csv,text/csv" hidden></label>
+          <button type="button" id="btn-theme">Сменить тему</button>
+          <button type="button" id="btn-clear" class="danger">Удалить все сигналы</button>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <main>
+    <section class="stats" id="stats" aria-label="Статистика"></section>
+
+    <section class="panel">
+      <div class="filters">
+        <input type="search" id="f-search" placeholder="Поиск: тикер, источник, заметка" aria-label="Поиск">
+        <select id="f-status" aria-label="Статус">
+          <option value="">Все статусы</option>
+        </select>
+        <select id="f-direction" aria-label="Направление">
+          <option value="">LONG и SHORT</option>
+          <option value="long">LONG</option>
+          <option value="short">SHORT</option>
+        </select>
+        <span class="sync-state muted small" id="sync-state"></span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="signals">
+          <thead>
+            <tr>
+              <th data-sort="date">Дата</th>
+              <th data-sort="ticker">Тикер</th>
+              <th data-sort="direction">Напр.</th>
+              <th class="num" data-sort="entry">Вход</th>
+              <th class="num">SL / TP</th>
+              <th class="num" data-sort="exitPrice">Выход</th>
+              <th class="num" data-sort="riskReward">R:R</th>
+              <th class="num" data-sort="pnlPct">Результат</th>
+              <th class="num" data-sort="pnlUsd">P&amp;L $</th>
+              <th data-sort="status">Статус</th>
+              <th><span class="visually-hidden">Действия</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty" hidden>
+          <p><strong>Сигналов пока нет.</strong></p>
+          <p class="muted">Добавьте первый сигнал, импортируйте CSV или подключите Google Таблицу.</p>
+          <button class="btn primary" type="button" data-action="new">+ Новый сигнал</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlg-signal" aria-labelledby="dlg-signal-title">
+    <form id="form-signal" method="dialog" novalidate>
+      <h2 id="dlg-signal-title">Новый сигнал</h2>
+      <input type="hidden" name="id">
+      <div class="grid">
+        <label>Тикер / пара<input name="ticker" placeholder="BTCUSDT" required autocomplete="off"></label>
+        <label>Дата и время<input name="date" type="datetime-local"></label>
+        <label>Рынок
+          <select name="market">
+            <option value="crypto">Крипта</option>
+            <option value="stocks">Акции</option>
+            <option value="forex">Форекс</option>
+            <option value="futures">Фьючерсы</option>
+            <option value="other">Другое</option>
+          </select>
+        </label>
+        <fieldset class="segmented">
+          <legend>Направление</legend>
+          <label><input type="radio" name="direction" value="long" checked><span>LONG</span></label>
+          <label><input type="radio" name="direction" value="short"><span>SHORT</span></label>
+        </fieldset>
+        <label>Цена входа<input name="entry" inputmode="decimal" required></label>
+        <label>Стоп-лосс<input name="stopLoss" inputmode="decimal"></label>
+        <label>Тейк-профит<input name="takeProfit" inputmode="decimal"></label>
+        <label>Объём позиции, $<input name="size" inputmode="decimal"></label>
+        <label>Статус<select name="status"></select></label>
+        <label>Цена выхода<input name="exitPrice" inputmode="decimal" placeholder="по TP/SL, если пусто"></label>
+        <label>Источник<input name="source" placeholder="канал, автор, стратегия" list="sources"></label>
+        <label class="wide">Заметка<textarea name="note" rows="2"></textarea></label>
+      </div>
+      <datalist id="sources"></datalist>
+      <div class="preview" id="preview" aria-live="polite"></div>
+      <ul class="errors" id="form-errors" role="alert"></ul>
+      <div class="dlg-actions">
+        <button class="btn" type="button" value="cancel" data-close>Отмена</button>
+        <button class="btn primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-sheets" aria-labelledby="dlg-sheets-title">
+    <form id="form-sheets" method="dialog">
+      <h2 id="dlg-sheets-title">Google Таблица</h2>
+      <p class="muted small">
+        Создайте таблицу, откройте «Расширения → Apps Script», вставьте скрипт
+        <a href="google-apps-script/Code.gs" target="_blank" rel="noopener">Code.gs</a>
+        и разверните его как веб-приложение с доступом «Все». Подробно — в README.
+      </p>
+      <label>URL веб-приложения<input name="url" type="url" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <label>Токен (если задан в скрипте)<input name="token" autocomplete="off"></label>
+      <label class="check"><input type="checkbox" name="autoSync"> Отправлять изменения автоматически</label>
+      <div class="dlg-actions spread">
+        <button class="btn" type="button" id="btn-pull">Загрузить из таблицы</button>
+        <button class="btn" type="button" id="btn-push">Отправить в таблицу</button>
+      </div>
+      <div class="dlg-actions">
+        <button class="btn" type="button" data-close>Закрыть</button>
+        <button class="btn primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
