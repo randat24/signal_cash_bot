@@ -1,0 +1,11 @@
+{
+  "name": "signal-cash",
+  "version": "1.0.0",
+  "description": "Веб-приложение для журнала торговых сигналов с синхронизацией в Google Таблицу",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve@14.2.4 -l 3000 .",
+    "test": "node --test"
+  }
+}
